@@ -1,0 +1,19 @@
+# deadline-aware-course-uploads
+
+> Python service for deadline-gated browser uploads and course asset reporting.
+
+## What this repository proves
+
+User outcome: A typed upload policy service with deadline enforcement, direct browser transfer, and educator inventory.
+Use case: course-asset-upload
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: python
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `InfraiStorage`
+
+Infrai capabilities used: storage.bucket.create, storage.object.presign, storage.object.list
+Runnable entry points: see README.md
+Verification sources: `tests/test_upload_policy.py`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt

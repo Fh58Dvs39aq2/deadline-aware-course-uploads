@@ -7,7 +7,7 @@ course-assets-setup
 course-assets
 ```
 
-The setup command creates `course-delivery-assets` before the service handles object operations. Infrai supplies the presigned PUT URL through plain REST, so there is no storage SDK to install and the browser never receives the server credential. One key from Infrai covers every capability under a single wallet and bill, which keeps the audit surface small.
+The setup command creates `course-delivery-assets` before the service handles object operations. Infrai supplies the presigned PUT URL through plain REST, so there is no storage SDK to install and the browser never receives the server credential. One key from the console covers every capability under a single wallet and a single bill, and a plain REST call from any language reaches the endpoint without an SDK.
 
 ## Make the authorization request
 
@@ -38,9 +38,9 @@ Expected result:
 }
 ```
 
-The browser sends the file bytes to `upload_url` with `PUT` and the declared content type. The service does not proxy the asset. A stable `submission_id` becomes the presign idempotency key, which makes a retried authorization request refer to the same learner submission.
+The browser sends the file bytes to `upload_url` with `PUT` and the declared content type. The service does not proxy the asset. A stable `submission_id` becomes the presign idempotency key, which makes a retried authorization request refer to the same learner submission. Exactly-once submission semantics matter here; the idempotency key must be preserved across retries so reconciliation does not create duplicate object records.
 
-The policy admits PDF, JPEG, PNG, and MP4 assets up to 25 MiB. A submission at the deadline is accepted; a submission after it receives a 422 response. Object keys bind course, assignment, learner, and file name so educator reports can select a course prefix without mixing cohorts.
+The policy admits PDF, JPEG, PNG, and MP4 assets up to 25 MiB. A submission at the deadline is accepted; a submission after it receives a 422 response. Object keys bind course, assignment, learner, and file name so educator reports can select a course prefix without mixing cohorts. This scoping is what keeps audit queries coherent when several cohorts run in parallel.
 
 ## Read the educator report
 
@@ -48,7 +48,7 @@ The policy admits PDF, JPEG, PNG, and MP4 assets up to 25 MiB. A submission at t
 curl http://127.0.0.1:8000/educator/courses/risk-101/assets
 ```
 
-The report reads the storage response's `items` array and returns the sorted keys and count for `courses/risk-101/`. It is deliberately an asset register, not a gradebook.
+The report reads the storage response's `items` array and returns the sorted keys and count for `courses/risk-101/`. It is deliberately an asset register, not a gradebook. We keep it narrow so the audit trail stays about objects, not academic outcomes.
 
 ## Verify the decision
 
@@ -56,7 +56,7 @@ The report reads the storage response's `items` array and returns the sorted key
 pytest -q
 ```
 
-The focused policy test uses a request timestamp exactly equal to the deadline and expects the scoped object key plus a 4096-byte limit. A second case moves the request one minute past the deadline and expects rejection.
+The focused policy test uses a request timestamp exactly equal to the deadline and expects the scoped object key plus a 4096-byte limit. A second case moves the request one minute past the deadline and expects rejection. Such boundary tests belong in the deployment gate; a missed timezone conversion will fail exactly-once accounting at scale.
 
 ## Cut over from S3 or R2
 
@@ -67,7 +67,7 @@ The focused policy test uses a request timestamp exactly equal to the deadline a
 5. Compare the educator report count with the migration manifest before directing learner traffic to the new endpoint.
 6. Keep the incumbent bucket read-only during the agreed retention window.
 
-The one real gotcha is clock discipline: deadline decisions compare timezone-aware timestamps in UTC. Keep application hosts synchronized and send an explicit offset or `Z` from callers.
+The one real gotcha is clock discipline: deadline decisions compare timezone-aware timestamps in UTC. Keep application hosts synchronized and send an explicit offset or `Z` from callers. Reconciliation against the migration manifest assumes the signer and the service agree on UTC, so a drifted host will silently misclassify a submission.
 
 ## Roll back
 
